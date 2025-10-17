@@ -270,7 +270,7 @@ def get_player_action(player: Player, valid_plays: List[List[Card]]) -> Optional
     
     if not valid_plays:
         console.print("[yellow]No valid plays available - you must pass[/yellow]")
-        Confirm.ask("Press Enter to pass", default=True, show_default=False, console=console)
+        console.input("[dim]Press Enter to pass...[/dim] ")
         console.print()
         return None
     
@@ -551,7 +551,11 @@ def confirm_continue() -> bool:
 
 
 def clear_screen() -> None:
-    """Clear the screen."""
+    """Clear the screen and prevent scrollback."""
+    import os
+    # Use system clear to prevent scrollback
+    os.system('clear' if os.name != 'nt' else 'cls')
+    # Also use console.clear for good measure
     console.clear()
 
 

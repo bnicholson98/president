@@ -32,12 +32,13 @@ from src.trick import Trick, Play
 from src.player import Player
 
 
-def play_trick_interactive(game: Game, starting_player: Player) -> Player:
+def play_trick_interactive(game: Game, starting_player: Player, is_first_trick: bool = False) -> Player:
     """Play one trick interactively.
     
     Args:
         game: The game instance
         starting_player: Player who leads
+        is_first_trick: True if this is the first trick of the round
         
     Returns:
         Winner of the trick
@@ -48,7 +49,7 @@ def play_trick_interactive(game: Game, starting_player: Player) -> Player:
     if starting_player not in active:
         starting_player = active[0] if active else starting_player
     
-    trick = Trick(active)
+    trick = Trick(active, is_first_trick=is_first_trick)
     
     # Reorder players to start with starting_player
     player_order = []
@@ -83,8 +84,9 @@ def play_trick_interactive(game: Game, starting_player: Player) -> Player:
             # Show current play
             display_trick_state(trick, trick.current_play)
             
-            # Get valid plays
-            valid_plays = player.get_valid_plays(trick.current_play)
+            # Get valid plays (check if first trick and no plays yet)
+            is_leading_first = is_first_trick and trick.current_play is None
+            valid_plays = player.get_valid_plays(trick.current_play, is_first_trick=is_leading_first)
             
             # Get player action
             chosen_cards = get_player_action(player, valid_plays)
@@ -132,7 +134,7 @@ def handle_card_exchange_ui(action_type: str, *args):
     """
     if action_type == 'scum_gives':
         scum_name, cards, president_name = args
-        console.print(f"[bold]{scum_name}[/bold] (Scum) automatically gives their 2 best cards to [bold]{president_name}[/bold] (President):")
+        console.print(f"[bold]{scum_name}[/bold] (Scum) automatically gives their 2 best cards:")
         display_cards_given(scum_name, cards, president_name)
         pause()
         
@@ -140,18 +142,22 @@ def handle_card_exchange_ui(action_type: str, *args):
         president, num_cards, scum_name = args
         clear_screen()
         console.print(f"\n[bold yellow]Card Exchange: President's Turn[/bold yellow]\n")
+        console.print(f"Choose {num_cards} card(s) to give to {scum_name} (Scum)\n")
         chosen = get_cards_to_give_away(president, num_cards, scum_name)
+        # Show only to president what they chose
+        console.print(f"\n[dim]You will give these cards (only you can see this)[/dim]")
+        pause()
         return chosen
         
     elif action_type == 'president_gives':
         president_name, cards, scum_name = args
-        console.print(f"[bold]{president_name}[/bold] (President) gives to [bold]{scum_name}[/bold] (Scum):")
-        display_cards_given(president_name, cards, scum_name)
+        # Don't display the cards - only the president saw them
+        console.print(f"[bold]{president_name}[/bold] (President) has chosen their cards to give.")
         pause()
         
     elif action_type == 'vscum_gives':
         vscum_name, cards, vp_name = args
-        console.print(f"[bold]{vscum_name}[/bold] (Vice-Scum) automatically gives their best card to [bold]{vp_name}[/bold] (Vice-President):")
+        console.print(f"[bold]{vscum_name}[/bold] (Vice-Scum) automatically gives their best card:")
         display_cards_given(vscum_name, cards, vp_name)
         pause()
         
@@ -159,13 +165,17 @@ def handle_card_exchange_ui(action_type: str, *args):
         vp, num_cards, vscum_name = args
         clear_screen()
         console.print(f"\n[bold yellow]Card Exchange: Vice-President's Turn[/bold yellow]\n")
+        console.print(f"Choose {num_cards} card(s) to give to {vscum_name} (Vice-Scum)\n")
         chosen = get_cards_to_give_away(vp, num_cards, vscum_name)
+        # Show only to VP what they chose
+        console.print(f"\n[dim]You will give this card (only you can see this)[/dim]")
+        pause()
         return chosen
         
     elif action_type == 'vp_gives':
         vp_name, cards, vscum_name = args
-        console.print(f"[bold]{vp_name}[/bold] (Vice-President) gives to [bold]{vscum_name}[/bold] (Vice-Scum):")
-        display_cards_given(vp_name, cards, vscum_name)
+        # Don't display the card - only the VP saw it
+        console.print(f"[bold]{vp_name}[/bold] (Vice-President) has chosen their card to give.")
         pause()
 
 
@@ -231,9 +241,11 @@ def play_round_interactive(game: Game) -> None:
     pause()
     
     # Play tricks until only one player has cards
+    first_trick = True
     while len(game.get_active_players()) > 1:
-        winner = play_trick_interactive(game, current_player)
+        winner = play_trick_interactive(game, current_player, is_first_trick=first_trick)
         current_player = winner
+        first_trick = False
     
     # Last player with cards is the final finisher
     remaining = game.get_active_players()

@@ -71,18 +71,31 @@ class Player:
                 return True
         return False
     
-    def get_valid_plays(self, current_play: Optional['Play'] = None) -> List[List[Card]]:
+    def get_valid_plays(self, current_play: Optional['Play'] = None, is_first_trick: bool = False) -> List[List[Card]]:
         """Get all valid card combinations this player can play.
         
         Args:
             current_play: The current play to beat, or None if leading
+            is_first_trick: True if this is the first trick of round (3♣ required)
             
         Returns:
             List of valid plays, where each play is a list of cards
         """
         if current_play is None:
-            # Can lead with any single card or set
-            return self._get_all_possible_plays()
+            # Leading - get all possible plays
+            all_plays = self._get_all_possible_plays()
+            
+            # If first trick, filter to only plays containing 3♣
+            if is_first_trick:
+                from src.card import Suit
+                three_clubs_plays = []
+                for play in all_plays:
+                    has_three_clubs = any(c.suit == Suit.CLUBS and c.rank == Rank.THREE for c in play)
+                    if has_three_clubs:
+                        three_clubs_plays.append(play)
+                return three_clubs_plays
+            
+            return all_plays
         else:
             # Must beat the current play
             return self._get_plays_that_beat(current_play)
@@ -152,19 +165,23 @@ class Player:
                 rank_groups[rank] = []
             rank_groups[rank].append(card)
         
-        # Check if we have 3 of spades and current play is a single
-        if num_cards_needed == 1:
-            for card in self.hand:
-                if card.is_three_of_spades():
-                    # 3 of spades beats everything as a single
-                    valid_plays.append([card])
-                    return valid_plays
-        
-        # Find ranks that beat current play
+        # Find ranks that beat current play (by value)
         for rank, cards in rank_groups.items():
             if rank.value > current_value and len(cards) >= num_cards_needed:
                 # Can play this rank
                 valid_plays.append(cards[:num_cards_needed])
+        
+        # Special case: Check if we have 3 of spades and current play is a single
+        # 3♠ beats everything as a single (add it as an additional option)
+        if num_cards_needed == 1:
+            for card in self.hand:
+                if card.is_three_of_spades():
+                    # 3 of spades beats everything as a single - add if not already there
+                    three_spades_play = [card]
+                    # Check if we already added this (in case 3 is higher than current)
+                    if not any(play[0].is_three_of_spades() for play in valid_plays):
+                        valid_plays.append(three_spades_play)
+                    break
         
         return valid_plays
     

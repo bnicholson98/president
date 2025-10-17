@@ -96,15 +96,17 @@ class Play:
 class Trick:
     """Manages a single trick (round of plays until someone wins)."""
     
-    def __init__(self, players: List['Player']):
+    def __init__(self, players: List['Player'], is_first_trick: bool = False):
         """Initialize a trick with active players.
         
         Args:
             players: List of players participating in this trick
+            is_first_trick: True if this is the first trick of the round (3♣ required)
         """
         self.plays: List[Play] = []
         self.current_play: Optional[Play] = None
         self.active_players = players.copy()
+        self.is_first_trick = is_first_trick
         
         # Reset all players' passed status
         for player in self.active_players:
@@ -155,6 +157,14 @@ class Trick:
         # Check if player has these cards
         for card in cards:
             if card not in player.hand:
+                return False
+        
+        # Special case: First trick of round, leading player must play 3♣
+        if self.is_first_trick and self.current_play is None:
+            from src.card import Suit, Rank
+            # Must include 3 of clubs
+            has_three_clubs = any(c.suit == Suit.CLUBS and c.rank == Rank.THREE for c in cards)
+            if not has_three_clubs:
                 return False
         
         # If no current play, can play anything valid

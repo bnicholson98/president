@@ -163,11 +163,12 @@ class Game:
         """
         return [p for p in self.players if not p.is_hand_empty()]
     
-    def play_trick(self, starting_player: Player) -> Player:
+    def play_trick(self, starting_player: Player, is_first_trick: bool = False) -> Player:
         """Play one complete trick.
         
         Args:
             starting_player: Player who leads the trick
+            is_first_trick: True if this is the first trick of the round
             
         Returns:
             Winner of the trick
@@ -178,7 +179,7 @@ class Game:
         if starting_player not in active:
             starting_player = active[0] if active else starting_player
         
-        trick = Trick(active)
+        trick = Trick(active, is_first_trick=is_first_trick)
         
         # Reorder players to start with starting_player
         player_order = []
@@ -201,7 +202,7 @@ class Game:
                     continue
                 
                 # For now, auto-play (this will be replaced by UI in Phase 6)
-                valid_plays = player.get_valid_plays(trick.current_play)
+                valid_plays = player.get_valid_plays(trick.current_play, is_first_trick=is_first_trick and not trick.plays)
                 
                 if valid_plays:
                     # Play the first valid play
@@ -235,9 +236,11 @@ class Game:
         current_player = self.find_starting_player()
         
         # Play tricks until only one player has cards
+        first_trick = True
         while len(self.get_active_players()) > 1:
-            winner = self.play_trick(current_player)
+            winner = self.play_trick(current_player, is_first_trick=first_trick)
             current_player = winner
+            first_trick = False
         
         # Last player with cards is the final finisher
         remaining = self.get_active_players()
