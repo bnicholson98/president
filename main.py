@@ -88,8 +88,11 @@ def play_trick_interactive(game: Game, starting_player: Player, is_first_trick: 
             is_leading_first = is_first_trick and trick.current_play is None
             valid_plays = player.get_valid_plays(trick.current_play, is_first_trick=is_leading_first)
             
+            # Determine if player can pass (cannot pass when leading)
+            can_pass = trick.current_play is not None
+            
             # Get player action
-            chosen_cards = get_player_action(player, valid_plays)
+            chosen_cards = get_player_action(player, valid_plays, can_pass=can_pass)
             
             if chosen_cards:
                 # Player chose to play cards
@@ -134,8 +137,11 @@ def handle_card_exchange_ui(action_type: str, *args):
     """
     if action_type == 'scum_gives':
         scum_name, cards, president_name = args
-        console.print(f"[bold]{scum_name}[/bold] (Scum) automatically gives their 2 best cards:")
+        clear_screen()
+        console.print(f"\n[bold yellow]Card Exchange: Scum's Cards[/bold yellow]\n")
+        console.print(f"[bold]{scum_name}[/bold] (Scum), these are your 2 best cards that will be given to the President:\n")
         display_cards_given(scum_name, cards, president_name)
+        console.print(f"[dim]Only you can see this. Pass the device to the President.[/dim]\n")
         pause()
         
     elif action_type == 'president_chooses':
@@ -144,21 +150,25 @@ def handle_card_exchange_ui(action_type: str, *args):
         console.print(f"\n[bold yellow]Card Exchange: President's Turn[/bold yellow]\n")
         console.print(f"Choose {num_cards} card(s) to give to {scum_name} (Scum)\n")
         chosen = get_cards_to_give_away(president, num_cards, scum_name)
-        # Show only to president what they chose
-        console.print(f"\n[dim]You will give these cards (only you can see this)[/dim]")
+        console.print(f"\n[dim]Only you can see your selection. Pass the device to continue.[/dim]\n")
         pause()
         return chosen
         
     elif action_type == 'president_gives':
         president_name, cards, scum_name = args
+        clear_screen()
         # Don't display the cards - only the president saw them
-        console.print(f"[bold]{president_name}[/bold] (President) has chosen their cards to give.")
+        console.print(f"\n[bold]{president_name}[/bold] (President) has completed their selection.")
+        console.print(f"Card exchange complete.\n")
         pause()
         
     elif action_type == 'vscum_gives':
         vscum_name, cards, vp_name = args
-        console.print(f"[bold]{vscum_name}[/bold] (Vice-Scum) automatically gives their best card:")
+        clear_screen()
+        console.print(f"\n[bold yellow]Card Exchange: Vice-Scum's Card[/bold yellow]\n")
+        console.print(f"[bold]{vscum_name}[/bold] (Vice-Scum), this is your best card that will be given to the Vice-President:\n")
         display_cards_given(vscum_name, cards, vp_name)
+        console.print(f"[dim]Only you can see this. Pass the device to the Vice-President.[/dim]\n")
         pause()
         
     elif action_type == 'vp_chooses':
@@ -167,15 +177,16 @@ def handle_card_exchange_ui(action_type: str, *args):
         console.print(f"\n[bold yellow]Card Exchange: Vice-President's Turn[/bold yellow]\n")
         console.print(f"Choose {num_cards} card(s) to give to {vscum_name} (Vice-Scum)\n")
         chosen = get_cards_to_give_away(vp, num_cards, vscum_name)
-        # Show only to VP what they chose
-        console.print(f"\n[dim]You will give this card (only you can see this)[/dim]")
+        console.print(f"\n[dim]Only you can see your selection. Pass the device to continue.[/dim]\n")
         pause()
         return chosen
         
     elif action_type == 'vp_gives':
         vp_name, cards, vscum_name = args
+        clear_screen()
         # Don't display the card - only the VP saw it
-        console.print(f"[bold]{vp_name}[/bold] (Vice-President) has chosen their card to give.")
+        console.print(f"\n[bold]{vp_name}[/bold] (Vice-President) has completed their selection.")
+        console.print(f"Card exchange complete.\n")
         pause()
 
 

@@ -255,12 +255,13 @@ def display_scores(players: List[Player]) -> None:
     console.print()
 
 
-def get_player_action(player: Player, valid_plays: List[List[Card]]) -> Optional[List[Card]]:
+def get_player_action(player: Player, valid_plays: List[List[Card]], can_pass: bool = True) -> Optional[List[Card]]:
     """Get player's action (play cards or pass).
     
     Args:
         player: Player making the action
         valid_plays: List of valid plays available
+        can_pass: Whether player is allowed to pass (False when leading)
         
     Returns:
         List of cards to play, or None to pass
@@ -296,28 +297,42 @@ def get_player_action(player: Player, valid_plays: List[List[Card]]) -> Optional
         
         table.add_row(str(i), cards_text, play_type)
     
-    table.add_row("[dim]0[/dim]", "[dim]Pass[/dim]", "")
+    # Only show pass option if player can pass
+    if can_pass:
+        table.add_row("[dim]0[/dim]", "[dim]Pass[/dim]", "")
     
     console.print(table)
     console.print()
     
+    if can_pass:
+        prompt_text = "Choose a play (or 0 to pass)"
+        default_val = 0
+    else:
+        prompt_text = "Choose a play (you must lead)"
+        default_val = 1
+    
     choice = IntPrompt.ask(
-        "Choose a play (or 0 to pass)",
-        default=0,
+        prompt_text,
+        default=default_val,
         console=console
     )
     
     console.print()
     
     if choice == 0:
-        return None
+        if can_pass:
+            return None
+        else:
+            console.print("[red]You must play a card (cannot pass when leading)[/red]")
+            console.print()
+            return get_player_action(player, valid_plays, can_pass=False)
     
     if 1 <= choice <= len(valid_plays):
         return valid_plays[choice - 1]
     
-    console.print("[red]Invalid choice, passing...[/red]")
+    console.print("[red]Invalid choice, try again...[/red]")
     console.print()
-    return None
+    return get_player_action(player, valid_plays, can_pass)
 
 
 def display_play(player: Player, cards: List[Card]) -> None:
