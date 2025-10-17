@@ -2,430 +2,428 @@
 
 This guide provides step-by-step instructions for implementing the President card game in Python.
 
-## Technology Stack
+## Phase 1: Project Setup
 
-- **Language**: Python 3.8+
-- **UI Library**: `rich` - for terminal-based UI with colors, tables, and formatting
-- **Testing**: `pytest` - for unit and integration tests
-- **Additional Libraries**: Standard library modules as needed
-
-## Development Setup
-
-### 1. Initialize Project Structure
+### Step 1.1: Initialize Project Structure
 
 Create the following directory structure:
 
 ```
 president/
+├── src/
+│   └── __init__.py
+├── tests/
+│   └── __init__.py
+├── main.py
+├── requirements.txt
 ├── README.md
 ├── IMPLEMENTATION_GUIDE.md
-├── requirements.txt
-├── main.py
-├── src/
-│   ├── __init__.py
-│   ├── card.py
-│   ├── deck.py
-│   ├── player.py
-│   ├── game.py
-│   └── ui.py
-└── tests/
-    ├── __init__.py
-    ├── test_card.py
-    ├── test_deck.py
-    ├── test_player.py
-    └── test_game.py
+└── .gitignore
 ```
 
-### 2. Create Requirements File
+### Step 1.2: Create requirements.txt
 
-Create `requirements.txt` with:
-```
+```txt
 rich>=13.0.0
 pytest>=7.0.0
+pytest-cov>=4.0.0
 ```
 
-## Implementation Steps
+### Step 1.3: Create .gitignore
 
-### Phase 1: Core Data Models
+```
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+*.egg-info/
+dist/
+build/
 
-#### Step 1.1: Implement Card Class (`src/card.py`)
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
 
-Create a `Card` class with:
-- **Attributes**:
-  - `rank`: Card rank (3-10, J, Q, K, A, 2)
-  - `suit`: Card suit (Clubs, Diamonds, Hearts, Spades)
-  
-- **Methods**:
-  - `__init__(rank, suit)`: Constructor
-  - `__str__()`: String representation (e.g., "3♣", "A♠")
-  - `__repr__()`: Object representation
-  - `__eq__()`: Equality comparison
-  - `__hash__()`: Make cards hashable
-  - `get_value()`: Returns numerical value for comparison (3=0, 4=1, ..., A=11, 2=12, 3♠=13)
-  - `is_three_of_spades()`: Check if card is the special 3 of spades
-  - `is_three_of_clubs()`: Check if card is the starting card
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
 
-**Special Considerations**:
-- Handle the special case where 3♠ is highest when played as single
-- Rank ordering: 3 < 4 < 5 < 6 < 7 < 8 < 9 < 10 < J < Q < K < A < 2 < 3♠ (single only)
+# OS
+.DS_Store
+Thumbs.db
+```
 
-**Tests to Write** (`tests/test_card.py`):
-- Test card creation
-- Test card comparison
-- Test special card identification (3♣, 3♠)
-- Test card value calculation
-- Test string representations
+## Phase 2: Core Data Structures
 
----
+### Step 2.1: Implement Card Class (src/card.py)
 
-#### Step 1.2: Implement Deck Class (`src/deck.py`)
+**Requirements:**
+- Define `Suit` enum: CLUBS, DIAMONDS, HEARTS, SPADES
+- Define `Rank` enum: THREE through ACE, plus TWO
+- Implement `Card` class:
+  - Properties: `suit`, `rank`
+  - Method: `__str__()` for display
+  - Method: `__repr__()` for debugging
+  - Method: `__eq__()` and `__hash__()` for comparisons
+  - Method: `get_value()` returns numeric value for comparison (3=0, 4=1, ..., A=11, 2=12)
+  - Method: `is_three_of_spades()` checks if card is 3♠
 
-Create a `Deck` class with:
-- **Attributes**:
-  - `cards`: List of Card objects
+**Special Considerations:**
+- 3 of spades is special - highest when played as single
+- 2 is higher than Ace
 
-- **Methods**:
-  - `__init__()`: Creates a standard 52-card deck
-  - `shuffle()`: Randomizes card order
-  - `deal(num_players)`: Deals all cards to specified number of players, returns list of hands
-  - `__len__()`: Returns number of cards remaining
+### Step 2.2: Implement Deck Class (src/card.py)
 
-**Implementation Notes**:
-- Use `random.shuffle()` for shuffling
-- Deal cards as evenly as possible (some players may get one extra card)
+**Requirements:**
+- Initialize with standard 52-card deck
+- Method: `shuffle()` randomizes deck
+- Method: `deal(num_players)` returns list of hands (each hand is a list of Cards)
+  - Deals one card at a time to each player in rotation
+  - Handles uneven distribution (some players may have one more card)
 
-**Tests to Write** (`tests/test_deck.py`):
+**Tests to Write (tests/test_card.py):**
+- Test card creation and properties
+- Test card value comparisons
+- Test 3 of spades identification
 - Test deck initialization (52 cards)
-- Test deck contains all unique cards
-- Test shuffle changes order
-- Test dealing distributes all cards
-- Test dealing with different player counts (3-8)
+- Test deck shuffling (order changes)
+- Test dealing to different numbers of players (3-8)
+- Test deal distribution is fair
 
----
+## Phase 3: Player Management
 
-### Phase 2: Player and Game Logic
+### Step 3.1: Implement Player Class (src/player.py)
 
-#### Step 2.1: Implement Player Class (`src/player.py`)
+**Requirements:**
+- Properties:
+  - `name`: string
+  - `hand`: list of Cards
+  - `score`: integer (total points)
+  - `rank`: string or enum (President, Vice-President, Neutral, Vice-Scum, Scum, or None)
+  - `has_passed`: boolean (for current trick)
+- Methods:
+  - `add_cards(cards)`: adds cards to hand
+  - `remove_cards(cards)`: removes cards from hand
+  - `sort_hand()`: sorts hand by card value
+  - `has_three_of_clubs()`: returns True if player has 3♣
+  - `get_valid_plays(current_play)`: returns list of valid card combinations
+    - If no current_play, return all possible plays from hand
+    - If current_play exists, return only plays that beat it
+  - `choose_cards_to_give(num)`: for card exchange (returns strongest cards for Scum)
+  - `is_hand_empty()`: returns True if no cards left
 
-Create a `Player` class with:
-- **Attributes**:
-  - `name`: Player name
-  - `hand`: List of cards in hand
-  - `rank`: Current social rank (President, Vice-President, Neutral, Vice-Scum, Scum)
-  - `score`: Total points accumulated
-  - `is_human`: Boolean indicating if human or AI player
-  - `has_passed`: Boolean for current trick
-  
-- **Methods**:
-  - `__init__(name, is_human=False)`: Constructor
-  - `add_cards(cards)`: Add cards to hand
-  - `remove_cards(cards)`: Remove cards from hand
-  - `sort_hand()`: Sort hand by card value
-  - `has_card(card)`: Check if player has specific card
-  - `get_valid_plays(current_play)`: Returns list of valid plays given current play
-  - `has_three_of_clubs()`: Check if player has 3♣
-  - `choose_play(current_play, trick_history)`: AI or human play selection
-  - `choose_starting_play()`: Special method for starting with 3♣
-  - `select_cards_to_give(count)`: Select strongest cards for exchange
-  - `__str__()`: String representation
-
-**Implementation Notes**:
-- AI logic can start simple (play lowest valid cards, pass when no good options)
-- Valid plays must match the number of cards in current play and be higher rank
-- Sort hand for easier display and play selection
-
-**Tests to Write** (`tests/test_player.py`):
-- Test player initialization
+**Tests to Write (tests/test_player.py):**
+- Test player creation
 - Test adding/removing cards
 - Test hand sorting
-- Test valid play detection
-- Test three of clubs detection
-- Test card selection logic
+- Test 3 of clubs detection
+- Test valid play generation (singles, pairs, triples, etc.)
+- Test valid plays against current play
+- Test card selection for exchange
 
----
+## Phase 4: Trick Logic
 
-#### Step 2.2: Implement Game Class (`src/game.py`)
+### Step 4.1: Implement Play Class (src/trick.py)
 
-Create a `Game` class with:
-- **Attributes**:
-  - `players`: List of Player objects
-  - `current_round`: Current round number
-  - `current_trick`: List of plays in current trick
-  - `current_player_idx`: Index of current player
-  - `active_players`: Set of players who haven't passed this trick
-  - `finished_order`: List tracking order players finished
-  - `round_winner`: Player who won current round
-  
-- **Methods**:
-  - `__init__(num_players, num_humans=1)`: Initialize game
-  - `setup_round()`: Deal cards and prepare for new round
-  - `start_round()`: Begin round, handle 3♣ starting requirement
-  - `play_trick()`: Execute one complete trick
-  - `process_play(player, cards)`: Validate and process a player's play
-  - `is_valid_play(cards, current_play)`: Validate if play is legal
-  - `complete_trick()`: End trick, determine winner, reset for next
-  - `check_round_end()`: Check if round is over (all but one player finished)
-  - `exchange_cards()`: Handle between-round card exchanges
-  - `calculate_scores()`: Award points based on rankings
-  - `is_game_over()`: Determine if game should end
-  - `get_winner()`: Return player with highest score
-  - `run()`: Main game loop
+**Requirements:**
+- Represents a set of cards played together
+- Properties:
+  - `cards`: list of Cards
+  - `player`: Player who played
+  - `num_cards`: number of cards in play
+  - `rank`: rank of cards (all cards must be same rank)
+- Methods:
+  - `beats(other_play)`: returns True if this play beats other_play
+    - Must have same number of cards
+    - Must have higher rank value
+    - Special case: single 3 of spades beats everything
+  - `is_valid()`: checks all cards are same rank
 
-**Game Flow**:
-1. Initialize players
-2. For each round:
-   - Deal cards
-   - Exchange cards (after round 1)
-   - Play tricks until round ends
-   - Assign rankings
-   - Calculate scores
-3. Determine winner
+### Step 4.2: Implement Trick Class (src/trick.py)
 
-**Special Logic**:
-- Track which players have passed in current trick
-- Reset pass status when trick completes
-- Handle 3♠ as highest single card only
-- Enforce 3♣ as starting play of first round
+**Requirements:**
+- Manages a single trick (round of plays until someone wins)
+- Properties:
+  - `plays`: list of Play objects
+  - `current_play`: the Play to beat (or None)
+  - `active_players`: players who haven't passed yet
+- Methods:
+  - `add_play(play)`: adds a play to the trick
+  - `can_play(player, cards)`: validates if player can play these cards
+  - `player_passes(player)`: marks player as passed for this trick
+  - `is_complete()`: returns True if only one active player remains (or all passed)
+  - `get_winner()`: returns Player who won the trick
 
-**Tests to Write** (`tests/test_game.py`):
-- Test game initialization
-- Test round setup
-- Test valid play validation
-- Test trick completion
-- Test round completion and ranking
+**Tests to Write (tests/test_trick.py):**
+- Test play creation and validation
+- Test play comparisons (single vs single, pairs vs pairs, etc.)
+- Test 3 of spades special rule
+- Test trick initialization
+- Test adding plays to trick
+- Test player passing
+- Test trick completion detection
+- Test winner determination
+
+## Phase 5: Game Logic
+
+### Step 5.1: Implement Game Class (src/game.py)
+
+**Requirements:**
+- Properties:
+  - `players`: list of Players
+  - `current_round`: integer
+  - `total_rounds`: integer
+  - `deck`: Deck
+  - `current_trick`: Trick or None
+  - `finished_players`: list of Players who finished this round (in order)
+- Methods:
+  - `setup_round()`: deals cards, performs card exchanges if not first round
+  - `find_starting_player()`: returns player with 3♣
+  - `play_trick()`: manages one complete trick
+  - `handle_card_exchange()`: 
+    - Scum gives 2 best cards to President
+    - President gives 2 any cards to Scum
+    - Vice-Scum gives 1 best card to Vice-President
+    - Vice-President gives 1 any card to Vice-Scum
+  - `play_round()`: manages one complete round until one player remains
+  - `assign_ranks()`: assigns President, VP, VS, Scum based on finish order
+  - `calculate_scores(is_final_round)`: awards points based on ranks
+  - `play_game()`: main game loop for all rounds
+  - `get_winner()`: returns player with highest score
+
+**Rank Assignment Logic:**
+- First to finish: President (1 point)
+- Last with cards: Scum
+- With 4+ players:
+  - Second to finish: Vice-President
+  - Second-to-last: Vice-Scum
+- With 3 players: Only President and Scum (no Vice roles)
+- Final round winner gets max(2, N-2) points instead of 1
+
+**Tests to Write (tests/test_game.py):**
+- Test game initialization with different player counts
+- Test starting player identification
 - Test card exchange logic
-- Test score calculation
-- Test game end conditions
+- Test rank assignment (3, 4, 5+ players)
+- Test scoring (regular rounds and final round)
+- Test complete round simulation
+- Test complete game simulation
+- Test edge cases (player winning multiple rounds, ties, etc.)
 
----
+## Phase 6: User Interface
 
-### Phase 3: User Interface
+### Step 6.1: Implement UI Module (src/ui.py)
 
-#### Step 3.1: Implement UI Class (`src/ui.py`)
+**Requirements:**
+Using the `rich` library, create functions for:
 
-Create a `UI` class using `rich` library with:
-- **Methods**:
-  - `display_welcome()`: Show game title and instructions
-  - `get_game_settings()`: Prompt for number of players
-  - `display_game_state(game)`: Show current game state (scores, round number)
-  - `display_player_hand(player)`: Show player's cards in a formatted way
-  - `display_current_trick(trick)`: Show cards played in current trick
-  - `display_valid_plays(valid_plays)`: Show available play options
-  - `get_player_choice(valid_plays)`: Get input from human player
-  - `display_play(player, cards)`: Announce a player's move
-  - `display_pass(player)`: Announce a player passed
-  - `display_trick_winner(player)`: Announce trick winner
-  - `display_round_results(rankings)`: Show round end results
-  - `display_card_exchange(exchanges)`: Show between-round exchanges
-  - `display_final_scores(players)`: Show final game results
-  - `display_winner(player)`: Announce game winner
-  - `confirm_continue()`: Ask if player wants to play another game
+- `display_welcome()`: Shows game title and rules summary
+- `get_game_setup()`: Prompts for number of players and rounds
+- `get_player_names(num_players)`: Prompts for each player name
+- `display_hand(player)`: Shows player's current hand with nice formatting
+  - Use `rich.table.Table` for card display
+  - Group by rank or suit
+  - Highlight special cards (2s, 3♠)
+- `display_trick_state(trick)`: Shows current trick plays
+- `display_rankings(players)`: Shows current social rankings
+- `display_scores(players)`: Shows score table
+- `get_player_action()`: Prompts player to play cards or pass
+  - Return: 'pass' or list of card indices
+- `display_play(player, cards)`: Announces a play
+- `display_trick_winner(player)`: Announces trick winner
+- `display_round_results(finished_players)`: Shows finish order
+- `display_game_winner(player)`: Shows final winner with fanfare
+- `display_error(message)`: Shows error messages
+- `confirm_continue()`: Prompts to continue to next round
 
-**Rich Library Features to Use**:
-- `Console` for formatted output
-- `Table` for displaying scores and rankings
-- `Panel` for important information
-- `Prompt` for user input
-- Color coding (e.g., red for hearts/diamonds, black for clubs/spades)
-- `Style` for emphasis and readability
+**UI Design Guidelines:**
+- Use `rich.console.Console` for all output
+- Use colors to distinguish:
+  - Suits (red for hearts/diamonds, white for clubs/spades)
+  - Player statuses (gold for President, gray for Scum, etc.)
+  - Actions (green for valid, red for errors)
+- Use `rich.panel.Panel` for important announcements
+- Use `rich.prompt.Prompt` for user input
+- Use `rich.progress.track` for any loading operations
+- Clear screen between major phases for readability
 
-**Implementation Notes**:
-- Make the interface clear and easy to read
-- Use colors to distinguish suits
-- Number valid plays for easy selection
-- Clear screen between turns (optional, for cleaner experience)
-- Show helpful context (what beats what, who's winning, etc.)
+### Step 6.2: Implement Main Game Loop (main.py)
 
-**Tests to Write** (`tests/test_ui.py`):
-- Test output formatting (check string output)
-- Test input parsing
-- Mock user inputs for testing interactive elements
+**Requirements:**
+- Import all necessary modules
+- Create main() function:
+  1. Display welcome screen
+  2. Get game setup (players, rounds)
+  3. Create Player objects
+  4. Create Game object
+  5. Run game loop with UI integration
+  6. Display final results
+- Handle exceptions gracefully
+- Allow replaying or exiting
 
----
-
-### Phase 4: Main Application
-
-#### Step 4.1: Implement Main Entry Point (`main.py`)
-
-Create the main application with:
+**Structure:**
 ```python
 def main():
-    """Main entry point for the President card game."""
-    # Initialize UI
-    # Get game settings
-    # Create and run game
-    # Display results
-    # Ask to play again
-    pass
+    # Welcome and setup
+    # Game initialization
+    # Game loop (for each round)
+        # Display round start
+        # Play tricks until round complete
+        # Display round results
+        # Handle card exchange
+    # Display final winner
+    # Prompt for replay
 
 if __name__ == "__main__":
     main()
 ```
 
-**Implementation Flow**:
-1. Display welcome screen
-2. Get number of players and human players
-3. Create Game instance
-4. Run game with UI integration
-5. Display final results
-6. Option to play again
+## Phase 7: Testing
 
----
+### Step 7.1: Write Comprehensive Tests
 
-### Phase 5: Testing and Refinement
+For each test file, ensure coverage of:
+- **Happy path**: Normal gameplay scenarios
+- **Edge cases**: 
+  - Minimum/maximum players
+  - All cards same rank
+  - Single player with 3♠
+  - Everyone passes
+  - Player wins multiple rounds
+- **Error handling**:
+  - Invalid plays
+  - Wrong number of cards
+  - Mixed ranks in set
+  - Playing after passing
 
-#### Step 5.1: Write Comprehensive Tests
+### Step 7.2: Integration Tests
 
-For each test file:
-- Use `pytest` fixtures for common setup
-- Test edge cases (e.g., single player with 3♣, all players pass except one)
-- Test special card behaviors
-- Test score calculations for various round numbers
-- Test card exchange with different player counts
+Create `tests/test_integration.py`:
+- Test complete 3-player game
+- Test complete 5-player game
+- Test card exchange between rounds
+- Test scoring across multiple rounds
+- Test final round bonus scoring
 
-#### Step 5.2: AI Improvements (Optional Enhancement)
-
-Implement smarter AI strategies:
-- **Defensive play**: Pass on weak hands when not leading
-- **Aggressive play**: Play strong cards when likely to win
-- **Card counting**: Track what's been played
-- **Social ranking awareness**: Presidents play more aggressively
-- **Set management**: Keep strong sets together
-
-#### Step 5.3: Additional Features (Optional)
-
-Consider implementing:
-- **Game variants**: Different rule sets (Revolution, Jokers, etc.)
-- **Statistics tracking**: Win rates, average scores
-- **Saved games**: Pause and resume functionality
-- **Replay system**: Review previous hands
-- **Difficulty levels**: Easy/Medium/Hard AI
-- **Network play**: Multiplayer over network
-
----
-
-## Implementation Order Recommendation
-
-1. **Start with Card and Deck** - These are foundational and easiest to test
-2. **Implement Player** - Build on Card/Deck, test hand management
-3. **Build Game Logic** - Most complex, but now you have building blocks
-4. **Create UI** - Can test game logic independently before adding UI
-5. **Integrate with Main** - Bring everything together
-6. **Comprehensive Testing** - Ensure all edge cases work
-7. **Polish and Refine** - Improve AI, add features, enhance UX
-
----
-
-## Testing Strategy
-
-### Unit Tests
-- Test each class in isolation
-- Mock dependencies where needed
-- Aim for >80% code coverage
-
-### Integration Tests
-- Test complete game flows
-- Test multi-round games
-- Test all player count variations (3-8)
-
-### Manual Testing
-- Play complete games
-- Test edge cases that are hard to automate
-- Verify UI/UX quality
-
----
-
-## Debug and Development Tips
-
-1. **Logging**: Add logging for game state changes to help debug
-2. **Verbose Mode**: Add a `--verbose` flag to show more game details
-3. **Deterministic Testing**: Use fixed random seeds in tests
-4. **Step-by-step Mode**: Allow stepping through AI moves for debugging
-5. **Hand Inspection**: Add ability to see all hands when debugging
-
----
-
-## Code Quality Guidelines
-
-- Follow PEP 8 style guidelines
-- Use type hints for function parameters and returns
-- Write docstrings for all classes and public methods
-- Keep functions focused and single-purpose
-- Use meaningful variable names
-- Comment complex logic
-- Avoid magic numbers (use constants)
-
----
-
-## Example Development Session
+### Step 7.3: Run Tests
 
 ```bash
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Run tests as you develop
-pytest tests/test_card.py -v
-pytest tests/ -v --cov=src
-
-# Run the game
-python main.py
-
-# Run specific test
-pytest tests/test_game.py::test_trick_completion -v
+pytest tests/ -v
+pytest --cov=src tests/ --cov-report=html
 ```
 
----
+## Phase 8: Polish and Refinement
+
+### Step 8.1: Add AI Players (Optional Enhancement)
+
+Create `src/ai_player.py`:
+- Inherit from Player
+- Implement basic strategy:
+  - Lead with lowest cards
+  - Beat current play with lowest possible cards
+  - Pass if cards are too valuable
+  - Save high cards (2s, A♠) for later
+
+### Step 8.2: Add Game State Persistence (Optional Enhancement)
+
+- Save/load game state to JSON
+- Allow resuming interrupted games
+
+### Step 8.3: Performance Optimization
+
+- Profile code for bottlenecks
+- Optimize card comparison operations
+- Cache valid play calculations
+
+### Step 8.4: Documentation
+
+- Add docstrings to all classes and methods (Google or NumPy style)
+- Add type hints throughout codebase
+- Create usage examples in README
+
+## Implementation Order Summary
+
+**Recommended implementation order:**
+
+1. **Week 1**: Phase 1-2 (Setup, Card/Deck)
+2. **Week 2**: Phase 3 (Player management)
+3. **Week 3**: Phase 4 (Trick logic)
+4. **Week 4**: Phase 5 (Game logic)
+5. **Week 5**: Phase 6 (UI)
+6. **Week 6**: Phase 7 (Testing)
+7. **Week 7**: Phase 8 (Polish)
+
+Each phase should follow TDD (Test-Driven Development):
+1. Write tests first
+2. Run tests (they should fail)
+3. Implement code
+4. Run tests (they should pass)
+5. Refactor
+6. Repeat
+
+## Key Design Decisions
+
+### Card Comparison
+
+The card ranking system should use numeric values:
+```python
+3=0, 4=1, 5=2, 6=3, 7=4, 8=5, 9=6, 10=7, J=8, Q=9, K=10, A=11, 2=12
+```
+
+Special case for 3♠: Check separately when comparing single cards.
+
+### Play Validation
+
+A play beats another if:
+1. Same number of cards
+2. Higher rank value
+3. OR single 3 of spades vs anything
+
+### Card Exchange
+
+Exchange happens before dealing new round. Order:
+1. Collect cards from all players
+2. Perform exchanges based on previous round ranks
+3. Deal new hands
+4. Find player with 3♣ to start
+
+### State Management
+
+Keep game state immutable where possible. Create new objects rather than modifying existing ones for easier testing and debugging.
 
 ## Common Pitfalls to Avoid
 
-1. **Forgetting 3♠ special rule**: Only highest when played as single
-2. **Card exchange confusion**: President gives back ANY cards, not weakest
-3. **Pass tracking**: Players who pass are out until trick ends
-4. **Score calculation**: Final round uses special formula max(2, N-2)
-5. **Set validation**: Must match exact count of cards in current play
-6. **Round starting**: Only first round starts with 3♣
+1. **Don't forget**: Player who won previous trick leads next trick
+2. **Don't forget**: 3♠ is only special as a single card
+3. **Don't forget**: Players can pass even with valid plays
+4. **Don't forget**: Passed players can't play again in same trick
+5. **Don't forget**: Card exchange happens BEFORE dealing next round
+6. **Don't forget**: Final round scoring is different
+7. **Don't forget**: With 3 players, there are no Vice roles
 
----
+## Debugging Tips
 
-## Completion Checklist
+- Add verbose logging mode to trace game state
+- Use rich.print() for debugging complex data structures
+- Test with small decks (e.g., only face cards) for faster iterations
+- Create helper functions to set up specific game states for testing
+- Use pytest fixtures for common test scenarios
 
-- [ ] All core classes implemented (Card, Deck, Player, Game, UI)
-- [ ] All unit tests passing
-- [ ] Integration tests passing
-- [ ] Game playable from start to finish
-- [ ] All special rules implemented correctly (3♣ start, 3♠ highest single, exchanges)
-- [ ] Score calculation working correctly
-- [ ] UI is clear and user-friendly
-- [ ] AI makes reasonable decisions
-- [ ] Edge cases handled (ties, empty hands, etc.)
-- [ ] Code documented and commented
-- [ ] README updated with any changes
+## Success Criteria
 
----
-
-## Future Enhancements
-
-After core implementation, consider:
-- Save/load game state
-- Game replay feature
-- Statistics and achievements
-- Tournament mode
-- Custom rule sets
-- Improved AI with difficulty levels
-- Network multiplayer
-- Web interface version
-- Mobile app version
-
----
-
-## Support and Resources
-
-- **Rich Documentation**: https://rich.readthedocs.io/
-- **Pytest Documentation**: https://docs.pytest.org/
-- **Python Official Docs**: https://docs.python.org/3/
-
-Good luck with your implementation! 🎴
+The implementation is complete when:
+- ✅ All tests pass with >90% coverage
+- ✅ Game runs without crashes
+- ✅ All rules are correctly implemented
+- ✅ UI is clear and easy to use
+- ✅ Code is well-documented
+- ✅ Edge cases are handled gracefully
