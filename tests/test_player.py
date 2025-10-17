@@ -149,8 +149,8 @@ class TestPlayer:
         
         plays = player.get_valid_plays(None)
         
-        # Should have: 2 single aces, 1 pair of aces, 1 single king
-        assert len(plays) == 4
+        # Should have: 1 single ace, 1 pair of aces, 1 single king (singles don't repeat per suit)
+        assert len(plays) == 3
         
         # Check for pair
         pair_plays = [p for p in plays if len(p) == 2]
@@ -170,8 +170,8 @@ class TestPlayer:
         
         plays = player.get_valid_plays(None)
         
-        # Should have: 3 single kings, 1 pair of kings, 1 triple of kings, 1 single queen
-        assert len(plays) == 6
+        # Should have: 1 single king, 1 pair of kings, 1 triple of kings, 1 single queen
+        assert len(plays) == 4
         
         # Check for triple
         triple_plays = [p for p in plays if len(p) == 3]
@@ -191,8 +191,8 @@ class TestPlayer:
         
         plays = player.get_valid_plays(None)
         
-        # Should have: 4 singles, 1 pair, 1 triple, 1 quad
-        assert len(plays) == 7
+        # Should have: 1 single, 1 pair, 1 triple, 1 quad
+        assert len(plays) == 4
         
         # Check for quad
         quad_plays = [p for p in plays if len(p) == 4]
@@ -274,7 +274,7 @@ class TestPlayer:
         """Test choosing strongest cards to give away."""
         player = Player("Alice")
         player.add_cards([
-            Card(Suit.SPADES, Rank.THREE),  # value 0
+            Card(Suit.SPADES, Rank.THREE),  # value 0, but special - goes to end
             Card(Suit.HEARTS, Rank.FIVE),   # value 2
             Card(Suit.CLUBS, Rank.KING),    # value 10
             Card(Suit.DIAMONDS, Rank.TWO)   # value 12
@@ -282,11 +282,11 @@ class TestPlayer:
         
         strongest = player.choose_cards_to_give(2)
         
-        # Should give KING and TWO
+        # Should give TWO and 3♠ (3♠ is moved to end since it's the only 3)
         assert len(strongest) == 2
         ranks = [c.rank for c in strongest]
-        assert Rank.KING in ranks
         assert Rank.TWO in ranks
+        assert Rank.THREE in ranks
     
     def test_choose_cards_to_give_not_enough(self):
         """Test choosing more cards than available raises error."""

@@ -42,8 +42,22 @@ class Player:
             self.hand.remove(card)
     
     def sort_hand(self) -> None:
-        """Sort hand by card value (lowest to highest)."""
+        """Sort hand by card value (lowest to highest).
+        
+        Special case: If player has only one 3, and it's the 3 of spades,
+        put it at the end (since it's the most powerful card).
+        """
+        # Count how many 3s the player has
+        threes = [c for c in self.hand if c.rank == Rank.THREE]
+        
+        # Normal sort
         self.hand.sort(key=lambda card: card.get_value())
+        
+        # Special case: only one 3 and it's 3 of spades
+        if len(threes) == 1 and threes[0].is_three_of_spades():
+            # Move 3 of spades to the end
+            self.hand.remove(threes[0])
+            self.hand.append(threes[0])
     
     def has_three_of_clubs(self) -> bool:
         """Check if player has 3 of clubs.
@@ -91,9 +105,8 @@ class Player:
         
         # Generate all possible plays
         for rank, cards in rank_groups.items():
-            # Single card
-            for card in cards:
-                plays.append([card])
+            # Single card - only add one per rank (suits don't matter)
+            plays.append([cards[0]])
             
             # Pairs
             if len(cards) >= 2:
@@ -124,6 +137,13 @@ class Player:
         num_cards_needed = current_play.num_cards
         current_value = current_play.rank.value
         
+        # Check if current play is 3 of spades - nothing beats it
+        if num_cards_needed == 1:
+            current_card = current_play.cards[0]
+            if current_card.is_three_of_spades():
+                # Nothing beats 3♠ as a single
+                return []
+        
         # Group cards by rank
         rank_groups = {}
         for card in self.hand:
@@ -136,8 +156,8 @@ class Player:
         if num_cards_needed == 1:
             for card in self.hand:
                 if card.is_three_of_spades():
-                    valid_plays.append([card])
                     # 3 of spades beats everything as a single
+                    valid_plays.append([card])
                     return valid_plays
         
         # Find ranks that beat current play
