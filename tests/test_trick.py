@@ -554,3 +554,194 @@ class TestTrickIntegration:
         
         assert trick.is_complete()
         assert trick.get_winner() == alice
+
+
+class TestTrickEdgeCases:
+    """Test edge cases and error conditions for tricks."""
+    
+    def test_invalid_play_wrong_number_of_cards(self):
+        """Test that wrong number of cards is rejected."""
+        alice = Player("Alice")
+        bob = Player("Bob")
+        
+        alice.add_cards([
+            Card(Suit.HEARTS, Rank.FIVE),
+            Card(Suit.SPADES, Rank.FIVE)
+        ])
+        bob.add_cards([
+            Card(Suit.CLUBS, Rank.SEVEN),
+            Card(Suit.DIAMONDS, Rank.EIGHT),
+            Card(Suit.HEARTS, Rank.NINE)
+        ])
+        
+        trick = Trick([alice, bob])
+        
+        # Alice plays pair of 5s
+        pair = [Card(Suit.HEARTS, Rank.FIVE), Card(Suit.SPADES, Rank.FIVE)]
+        play1 = Play(pair, alice)
+        trick.add_play(play1)
+        alice.remove_cards(pair)
+        
+        # Bob tries to play single card against pair - should fail
+        assert not trick.can_play(bob, [Card(Suit.CLUBS, Rank.SEVEN)])
+        
+        # Bob tries to play triple against pair - should fail  
+        triple = [Card(Suit.CLUBS, Rank.SEVEN), Card(Suit.DIAMONDS, Rank.EIGHT), Card(Suit.HEARTS, Rank.NINE)]
+        assert not trick.can_play(bob, triple)
+    
+    def test_invalid_play_mixed_ranks(self):
+        """Test that mixed ranks in a set are rejected."""
+        alice = Player("Alice")
+        
+        alice.add_cards([
+            Card(Suit.HEARTS, Rank.FIVE),
+            Card(Suit.SPADES, Rank.SEVEN),
+            Card(Suit.CLUBS, Rank.NINE)
+        ])
+        
+        trick = Trick([alice])
+        
+        # Try to play mixed ranks as if they were a valid set
+        mixed_cards = [Card(Suit.HEARTS, Rank.FIVE), Card(Suit.SPADES, Rank.SEVEN)]
+        
+        # This should be caught by Play validation
+        with pytest.raises((ValueError, AssertionError)):
+            Play(mixed_cards, alice)
+    
+    def test_playing_after_passing(self):
+        """Test that players cannot play after they have passed."""
+        alice = Player("Alice")
+        bob = Player("Bob")
+        
+        alice.add_cards([Card(Suit.HEARTS, Rank.FIVE)])
+        bob.add_cards([Card(Suit.SPADES, Rank.SEVEN)])
+        
+        trick = Trick([alice, bob])
+        
+        # Alice plays
+        play = Play([Card(Suit.HEARTS, Rank.FIVE)], alice)
+        trick.add_play(play)
+        alice.remove_cards(play.cards)
+        
+        # Bob passes
+        trick.player_passes(bob)
+        assert bob.has_passed
+        
+        # Bob tries to play after passing - should not be allowed
+        # (In practice, the game logic should prevent this)
+        assert not trick.can_play(bob, [Card(Suit.SPADES, Rank.SEVEN)])
+    
+    def test_everyone_passes_scenario(self):
+        """Test the scenario where all players pass."""
+        alice = Player("Alice")
+        bob = Player("Bob") 
+        charlie = Player("Charlie")
+        
+        # Give everyone low cards
+        alice.add_cards([Card(Suit.HEARTS, Rank.THREE)])
+        bob.add_cards([Card(Suit.SPADES, Rank.FOUR)])
+        charlie.add_cards([Card(Suit.CLUBS, Rank.FIVE)])
+        
+        trick = Trick([alice, bob, charlie])
+        
+        # Alice leads with 3
+        play = Play([Card(Suit.HEARTS, Rank.THREE)], alice)
+        trick.add_play(play)
+        alice.remove_cards(play.cards)
+        
+        # Everyone else passes
+        trick.player_passes(bob)
+        trick.player_passes(charlie)
+        
+        assert trick.is_complete()
+        assert trick.get_winner() == alice
+    
+    def test_all_cards_same_rank_scenario(self):
+        """Test scenario where players have cards of the same rank."""
+        alice = Player("Alice")
+        bob = Player("Bob")
+        charlie = Player("Charlie")
+        
+        # All players have 7s
+        alice.add_cards([
+            Card(Suit.HEARTS, Rank.SEVEN),
+            Card(Suit.SPADES, Rank.SEVEN)
+        ])
+        bob.add_cards([Card(Suit.CLUBS, Rank.SEVEN)])
+        charlie.add_cards([Card(Suit.DIAMONDS, Rank.SEVEN)])
+        
+        trick = Trick([alice, bob, charlie])
+        
+        # Alice plays pair of 7s
+        pair = [Card(Suit.HEARTS, Rank.SEVEN), Card(Suit.SPADES, Rank.SEVEN)]
+        play1 = Play(pair, alice)
+        trick.add_play(play1)
+        alice.remove_cards(pair)
+        
+        # Bob and Charlie cannot beat pair with singles, must pass
+        assert not trick.can_play(bob, [Card(Suit.CLUBS, Rank.SEVEN)])
+        assert not trick.can_play(charlie, [Card(Suit.DIAMONDS, Rank.SEVEN)])
+        
+        trick.player_passes(bob)
+        trick.player_passes(charlie)
+        
+        assert trick.is_complete()
+        assert trick.get_winner() == alice
+
+
+class TestTrickSpecialScenarios:
+    """Test special scenarios and rule implementations."""
+    
+    def test_single_player_with_three_of_spades_dominance(self):
+        """Test that 3 of spades dominates in single card plays."""
+        alice = Player("Alice")
+        bob = Player("Bob")
+        
+        alice.add_cards([Card(Suit.HEARTS, Rank.ACE)])  # High card
+        bob.add_cards([Card(Suit.SPADES, Rank.THREE)])  # 3 of spades
+        
+        trick = Trick([alice, bob])
+        
+        # Alice plays Ace
+        play1 = Play([Card(Suit.HEARTS, Rank.ACE)], alice)
+        trick.add_play(play1)
+        alice.remove_cards(play1.cards)
+        
+        # Bob can beat with 3 of spades
+        assert trick.can_play(bob, [Card(Suit.SPADES, Rank.THREE)])
+        play2 = Play([Card(Suit.SPADES, Rank.THREE)], bob)
+        trick.add_play(play2)
+        bob.remove_cards(play2.cards)
+        
+        assert trick.current_play == play2
+        
+        # Now alice has no cards to respond with, trick should complete
+        trick.player_passes(alice)  # Alice must pass (no cards)
+        
+        assert trick.is_complete()
+        assert trick.get_winner() == bob
+    
+    def test_three_of_spades_only_beats_singles(self):
+        """Test that 3 of spades only beats other single cards."""
+        alice = Player("Alice")
+        bob = Player("Bob")
+        
+        alice.add_cards([
+            Card(Suit.HEARTS, Rank.ACE),
+            Card(Suit.CLUBS, Rank.ACE)
+        ])
+        bob.add_cards([Card(Suit.SPADES, Rank.THREE)])
+        
+        trick = Trick([alice, bob])
+        
+        # Alice plays pair of Aces
+        pair = [Card(Suit.HEARTS, Rank.ACE), Card(Suit.CLUBS, Rank.ACE)]
+        play1 = Play(pair, alice)
+        trick.add_play(play1)
+        alice.remove_cards(pair)
+        
+        # Bob cannot beat pair with single 3 of spades
+        assert not trick.can_play(bob, [Card(Suit.SPADES, Rank.THREE)])
+        
+        trick.player_passes(bob)
+        assert trick.get_winner() == alice
